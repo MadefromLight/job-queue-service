@@ -1,0 +1,6 @@
+import express from "express";import cors from "cors";import helmet from "helmet";import {z} from "zod";import {jobQueue} from "./queue";
+export const app=express();app.use(helmet());app.use(cors());app.use(express.json({limit:"1mb"}));
+app.get("/health",(_req,res)=>res.json({status:"ok",service:"job-queue-service"}));
+app.post("/api/jobs",async(req,res,next)=>{try{const input=z.object({type:z.enum(["notification","report","webhook"]),payload:z.record(z.unknown()).default({})}).parse(req.body);const job=await jobQueue.add(input.type,input);res.status(202).json({id:job.id,status:"queued",type:job.name});}catch(e){next(e);}});
+app.get("/api/jobs/:id",async(req,res,next)=>{try{const job=await jobQueue.getJob(req.params.id);if(!job)return res.status(404).json({message:"Job not found"});const state=await job.getState();res.json({id:job.id,type:job.name,state,attemptsMade:job.attemptsMade,result:job.returnvalue??null,failedReason:job.failedReason??null,createdAt:new Date(job.timestamp).toISOString()});}catch(e){next(e);}});
+app.use((error:unknown,_req:express.Request,res:express.Response,_next:express.NextFunction)=>{if(error instanceof z.ZodError)return res.status(400).json({message:"Validation failed",errors:error.flatten()});console.error(error);res.status(500).json({message:"Internal server error"});});
