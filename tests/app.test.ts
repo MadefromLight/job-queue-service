@@ -1,0 +1,3 @@
+import request from "supertest";import {describe,expect,it} from "vitest";import {app} from "../src/app";
+describe("health",()=>{it("returns service health",async()=>{const r=await request(app).get("/health");expect(r.status).toBe(200);expect(r.body).toEqual({status:"ok",service:"job-queue-service"});});});
+describe("job validation",()=>{it("rejects invalid types",async()=>{const r=await request(app).post("/api/jobs").send({type:"invalid",payload:{}});expect(r.status).toBe(400);});});
